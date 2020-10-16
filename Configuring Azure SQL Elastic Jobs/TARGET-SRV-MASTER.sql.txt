@@ -1,0 +1,7 @@
+
+-- ON TARGET SERVER'S MASTER DB
+
+CREATE LOGIN mastercred WITH PASSWORD='<your password>'
+CREATE USER mastercred FROM LOGIN mastercred
+
+CREATE LOGIN jobcred WITH PASSWORD='<your password>'

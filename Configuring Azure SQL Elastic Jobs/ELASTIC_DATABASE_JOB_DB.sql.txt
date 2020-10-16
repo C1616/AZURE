@@ -1,0 +1,48 @@
+
+-- ON JOB DB
+
+CREATE MASTER KEY ENCRYPTION BY PASSWORD='<your password>'; 
+
+CREATE DATABASE SCOPED CREDENTIAL myjobcred WITH IDENTITY = 'jobcred',
+    SECRET = '<your password>'; 
+GO
+
+CREATE DATABASE SCOPED CREDENTIAL mymastercred WITH IDENTITY = 'mastercred',
+    SECRET = '<your password>'; 
+GO
+
+--------------------------------------------------------------------------------------------------
+
+EXEC jobs.sp_add_target_group 'ServerGroup1'
+
+EXEC jobs.sp_add_target_group_member
+'ServerGroup1',
+@target_type = 'SqlServer',
+@refresh_credential_name='mymastercred', --credential required to refresh the databases in server
+@server_name='target-srv-ps.database.windows.net'
+
+--------------------------------------------------------------------------------------------------
+
+EXEC jobs.sp_add_job @job_name='CreateTableTest', @description='Create Table Test'
+
+-- Add job step for create table
+EXEC jobs.sp_add_jobstep @job_name='CreateTableTest',
+@command=N'IF NOT EXISTS (SELECT * FROM sys.tables 
+           	WHERE object_id = object_id(''Test''))
+CREATE TABLE [dbo].[Test]([TestId] [int] NOT NULL);',
+@credential_name='myjobcred',
+@target_group_name='ServerGroup1'
+
+--------------------------------------------------------------------------------------------------
+
+EXEC jobs.sp_start_job 'CreateTableTest'
+-- Failed to determine members of SqlServerTarget (server name 'target-srv-ps.database.windows.net', server location 'target-srv-ps.database.windows.net'): Cannot open server 'target-srv-ps' requested by the login. Client with IP address '191.238.6.45' is not allowed to access the server.  To enable access, use the Windows Azure Management Portal or run sp_set_firewall_rule on the master database to create a firewall rule for this IP address or address range.  It may take up to five minutes for this change to take effect. (Msg 40615, Level 14, State 1, Line 65536)
+--------------------------------------------------------------------------------------------------
+
+SELECT * FROM jobs.job_executions 
+WHERE is_active = 1 AND job_name = 'CreateTableTest'
+ORDER BY start_time DESC
+GO
+
+-- Cancel job execution with the specified job execution id
+EXEC jobs.sp_stop_job 'E7F91ADD-0EC6-4A43-9CB2-E9218DD4D7E5'
